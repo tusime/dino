@@ -1,0 +1,9 @@
+# 统一换行符，避免 Windows 提交的 CRLF 在 CI/Linux 上出问题
+* text=auto eol=lf
+
+# 明确标记为二进制，防止 Git 做换行转换破坏文件
+*.png binary
+*.ico binary
+
+# 生成的 HTML 是单文件产物，统一用 LF
+*.html text eol=lf

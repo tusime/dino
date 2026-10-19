@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── 构建产物：只在本地产出，不进仓库 ──────────────────────────
+# 根目录 index.html 和 dist/ 都是 tools/build.py 生成的结果。
+# CI（.github/workflows/deploy.yml）每次推送都会现场跑一遍构建，
+# 所以仓库里只需要源码，产物由流水线重新生成。
+/index.html
+/dist/
+
+# ── 个人文档：本地留存，不公开 ────────────────────────────────
+/README.md
+/docs/
+
+# 说明：
+# src/ 是唯一的手写源码目录，改这里；
+# 改完本地跑 `python tools/build.py`，生成可双击的 dist/chrome-dino.html。
