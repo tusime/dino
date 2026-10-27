@@ -33,6 +33,26 @@
         <span aria-hidden="true">&darr;</span><span>低头</span>
     </button>
     <div id="tap-hint" aria-hidden="true">轻触屏幕跳跃</div>
+    <button id="share-button" class="dino-ui" type="button" aria-label="生成成绩图">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+            <circle cx="9" cy="9" r="1.6"></circle>
+            <path d="m21 15-4.5-4.5L7 21"></path>
+        </svg><span>分享成绩</span>
+    </button>
+    <div id="score-modal" role="dialog" aria-modal="true" aria-label="成绩图预览"
+         tabindex="-1" hidden>
+        <div class="score-modal-card">
+            <img id="score-modal-img" alt="本局成绩图">
+            <p class="score-modal-hint">手机上可长按图片保存</p>
+            <div class="score-modal-actions">
+                <button id="score-download" type="button">保存图片</button>
+                <button id="score-share" type="button" hidden>分享</button>
+                <button id="score-close" type="button">关闭</button>
+            </div>
+        </div>
+    </div>
     <div id="main-frame-error" class="interstitial-wrapper">
         <div id="main-content">
             <div class="icon icon-offline" alt=""></div>
@@ -47,6 +67,7 @@
             </template>
         </div>
     </div>
+    <script src="share.js"></script>
 </body>
 
 </html>

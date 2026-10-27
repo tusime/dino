@@ -30,7 +30,8 @@ SRC = ROOT / "src"
 DIST = ROOT / "dist"
 OUT_NAME = "chrome-dino.html"
 
-REQUIRED = ["index.html", "index.css", "index.js", "sprite-1x.png", "sprite-2x.png"]
+REQUIRED = ["index.html", "index.css", "index.js", "share.js",
+            "sprite-1x.png", "sprite-2x.png"]
 missing = [f for f in REQUIRED if not (SRC / f).is_file()]
 if missing:
     sys.exit(f"[error] src/ 里缺少文件: {', '.join(missing)}")
@@ -38,6 +39,7 @@ if missing:
 html = (SRC / "index.html").read_text(encoding="utf-8")
 css = (SRC / "index.css").read_text(encoding="utf-8")
 js = (SRC / "index.js").read_text(encoding="utf-8")
+share_js = (SRC / "share.js").read_text(encoding="utf-8")
 
 # 兜底清理：早期源码里有一条指向不存在资源的死 CSS 引用
 # （src/index.css 已删，这里保留兼容，以便对旧版本源码打包）
@@ -52,6 +54,7 @@ fav_b64 = base64.b64encode(favicon.read_bytes()).decode() if favicon.is_file() e
 
 # 防御：JS 里若出现 </script> 字面量会提前截断内联脚本
 assert "</script>" not in js, "index.js 含有 </script>，无法安全内联"
+assert "</script>" not in share_js, "share.js 含有 </script>，无法安全内联"
 
 # 1) 内联样式表
 html, n1 = re.subn(
@@ -67,6 +70,13 @@ html, n2 = re.subn(r'\s*<link href="https://fonts\.googleapis\.com[^>]*>\s*', "\
 html, n3 = re.subn(
     r'<script src="index\.js"></script>',
     "<script>\n" + js + "\n</script>",
+    html,
+)
+
+# 3b) 内联成绩分享脚本
+html, n7 = re.subn(
+    r'<script src="share\.js"></script>',
+    "<script>\n" + share_js + "\n</script>",
     html,
 )
 
@@ -103,16 +113,16 @@ if fav_b64:
 DIST.mkdir(exist_ok=True)
 out = DIST / OUT_NAME
 
-reps = [n0, n1, n2, n3, n4, n5, n6]
+reps = [n0, n1, n2, n3, n7, n4, n5, n6]
 # n0（死引用清理）和 n2（外链字体）都是兼容旧源码的兜底步骤，
 # 现在的 src/ 里已经干净，未命中属正常
-critical = [n1, n3, n4, n5, n6]
+critical = [n1, n3, n7, n4, n5, n6]
 if 0 in critical:
     print(f"[warn] 关键替换未命中: {reps} —— 源码可能被改动过，请检查")
 
 out.write_text(html, encoding="utf-8")
 
-leftover = [ref for ref in ("index.css", "index.js", "assets/default", "fonts.googleapis", 'href="favicon.ico"')
+leftover = [ref for ref in ("index.css", "index.js", "share.js", "assets/default", "fonts.googleapis", 'href="favicon.ico"')
             if ref in html]
 print(f"替换次数: {reps}")
 print(f"产出: {out.relative_to(ROOT)}  ({out.stat().st_size:,} bytes)")

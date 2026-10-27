@@ -290,3 +290,124 @@ body {
     animation: tap-hint-fade 4.5s ease .8s forwards;
   }
 }
+
+/* ── 成绩分享 ─────────────────────────────────────────────────── */
+
+#share-button {
+  display: none;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(var(--strip-bottom, 330px) + 10px);
+  height: 44px;
+  padding: 0 20px;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#share-button svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* .dino-ui:active 的缩放会覆盖居中位移，这里补回来 */
+#share-button:active {
+  transform: translateX(-50%) scale(.96);
+}
+
+/* 只在游戏结束后出现；此时低头键已无意义，一并隐藏 */
+body.dino-crashed #share-button {
+  display: flex;
+}
+
+body.dino-crashed #duck-button {
+  display: none;
+}
+
+#score-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, .55);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  box-sizing: border-box;
+}
+
+#score-modal:not([hidden]) {
+  display: flex;
+}
+
+/* 弹层容器只用于承接焦点，不显示焦点框 */
+#score-modal:focus {
+  outline: none;
+}
+
+.score-modal-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: min(520px, 92vw);
+  max-height: 94vh;
+  padding: 14px 14px 12px;
+  background: #fff;
+  border-radius: 16px;
+  box-sizing: border-box;
+  overflow: auto;
+}
+
+#score-modal-img {
+  display: block;
+  max-width: 100%;
+  max-height: 66vh;
+  border-radius: 8px;
+  background: #f7f7f7;
+}
+
+.score-modal-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #9a9a9a;
+}
+
+.score-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.score-modal-actions button {
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 20px;
+  border: 1px solid rgba(0, 0, 0, .14);
+  border-radius: 999px;
+  background: #fff;
+  color: #444;
+  cursor: pointer;
+}
+
+.score-modal-actions button:hover {
+  background: #f5f5f5;
+}
+
+#score-download {
+  background: #535353;
+  border-color: #535353;
+  color: #fff;
+}
+
+#score-download:hover {
+  background: #3f3f3f;
+}
+
+body.dino-modal-open {
+  overflow: hidden;
+}
