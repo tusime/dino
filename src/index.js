@@ -949,16 +949,33 @@
             const scaleWidth = window.innerWidth / this.dimensions.WIDTH;
             const scale = Math.max(1, Math.min(scaleHeight, scaleWidth));
             const scaledCanvasHeight = this.dimensions.HEIGHT * scale;
-            // Positions the game container at 10% of the available vertical window
-            // height minus the game container height.
-            const translateY = Math.ceil(Math.max(0, (windowHeight - scaledCanvasHeight -
-                                                      Runner.config.ARCADE_MODE_INITIAL_TOP_POSITION) *
-                                                  Runner.config.ARCADE_MODE_TOP_POSITION_PERCENT)) *
-                  window.devicePixelRatio;
+
+            // 目标：画面条在视口中的 top（CSS px）。
+            // 桌面沿用原版逻辑（顶部约 10% 处）；触屏设备改为视觉居中偏上，
+            // 消除竖屏时"画面贴顶、下方大面积空白"的失衡构图。
+            const touchDevice =
+                window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+            const targetTop = touchDevice
+                ? Math.max(0, (windowHeight - scaledCanvasHeight) * 0.42)
+                : Runner.config.ARCADE_MODE_INITIAL_TOP_POSITION +
+                  (windowHeight - scaledCanvasHeight -
+                   Runner.config.ARCADE_MODE_INITIAL_TOP_POSITION) *
+                  Runner.config.ARCADE_MODE_TOP_POSITION_PERCENT;
+
+            // transform 写作 'scale(s) translateY(t)'，translate 在 scale 之内，
+            // 实际位移是 s*t，所以要除回 scale 才能得到目标像素位置。
+            // 注意：transform 的位移单位是 CSS 像素，原版代码在这里乘了
+            // devicePixelRatio，导致高分屏（手机）上画面被推得过低，已修正。
+            const translateY = Math.ceil(Math.max(0,
+                (targetTop - Runner.config.ARCADE_MODE_INITIAL_TOP_POSITION) / scale));
 
             const cssScale = scale;
             this.containerEl.style.transform =
                 'scale(' + cssScale + ') translateY(' + translateY + 'px)';
+
+            // 画面条底边位置，供 CSS 定位其下方的触控控件（低头键 / 提示）
+            document.documentElement.style.setProperty('--strip-bottom',
+                Math.round(targetTop + scaledCanvasHeight) + 'px');
         },
         
         /**

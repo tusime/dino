@@ -245,20 +245,48 @@ body {
 
 #duck-button {
   display: none;
-  right: calc(env(safe-area-inset-right, 0px) + 18px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
-  width: 68px;
-  height: 68px;
-  font-size: 24px;
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
+  bottom: auto;
+  /* 贴在画面条正下方，跟随画面位置（--strip-bottom 由 JS 计算） */
+  top: calc(var(--strip-bottom, 330px) + 10px);
+  height: 44px;
+  padding: 0 16px;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
 }
 
-/* 触屏设备游戏开始后，才显示低头按钮 */
+#tap-hint {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  left: calc(env(safe-area-inset-left, 0px) + 20px);
+  top: calc(var(--strip-bottom, 330px) + 10px);
+  height: 44px;
+  align-items: center;
+  font-size: 13px;
+  color: #9a9a9a;
+  pointer-events: none;  /* 不挡操作，点它等于点屏幕 = 跳 */
+}
+
+@keyframes tap-hint-fade {
+  0%   { opacity: 0; }
+  8%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 触屏设备游戏开始后，才显示低头按钮与提示（提示约 4 秒后淡出） */
 @media (hover: none) and (pointer: coarse) {
   .arcade-mode #duck-button {
     display: flex;
+  }
+  .arcade-mode #tap-hint {
+    display: flex;
+    animation: tap-hint-fade 4.5s ease .8s forwards;
   }
 }
