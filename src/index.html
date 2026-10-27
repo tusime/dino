@@ -7,15 +7,29 @@
     <title >chrome easter egg: t-rex runner</title>
     <link rel="icon" type="image/png" href="favicon.ico">
     <link rel="stylesheet" href="index.css">
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet"> 
     <script src="index.js"></script>
 </head>
 
 <body id="t" class="offline">
     <div id="messageBox" class="sendmessage">
-         <h1 style="text-align: center;font-family: 'Open Sans', sans-serif;">Press Space to start</h1>
-         <div class="niokbutton" onclick="okbuttonsend()"></div>
+         <h1>Press Space or Tap to start</h1>
     </div>
+    <button id="sound-toggle" class="dino-ui" type="button"
+            aria-label="Toggle sound" aria-pressed="true" title="Sound (M)">
+        <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6 9H3v6h3l5 4z"></path>
+            <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+            <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+        </svg>
+        <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6 9H3v6h3l5 4z"></path>
+            <path d="m16 9 5 6M21 9l-5 6"></path>
+        </svg>
+    </button>
+    <button id="duck-button" class="dino-ui" type="button"
+            aria-label="Duck" title="Duck">↓</button>
     <div id="main-frame-error" class="interstitial-wrapper">
         <div id="main-content">
             <div class="icon icon-offline" alt=""></div>
@@ -32,14 +46,4 @@
     </div>
 </body>
 
-<script>
-    document.onkeydown = function(evt) {
-    evt = evt || window.event;
-    if (evt.keyCode == 32) {
-        var box = document.getElementById("messageBox");
-        box.style.visibility="hidden";
-    }
-};
-</script>
-    
 </html>

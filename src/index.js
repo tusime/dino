@@ -57,6 +57,7 @@
         // Sound FX.
         this.audioBuffer = null;
         this.soundFx = {};
+        this.soundEnabled = this.loadSoundPref();
 
         // Global web audio context for playing sounds.
         this.audioContext = null;
@@ -90,13 +91,23 @@
     var IS_HIDPI = window.devicePixelRatio > 1;
 
     /** @const */
-    var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
+    var IS_TOUCH_ENABLED = 'ontouchstart' in window ||
+        (window.navigator.maxTouchPoints || 0) > 0;
 
     /** @const */
-    var IS_MOBILE = /Android/.test(window.navigator.userAgent) || IS_IOS;
+    var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform) ||
+        (window.navigator.platform === 'MacIntel' &&
+            (window.navigator.maxTouchPoints || 0) > 1);
 
-    /** @const */
-    var IS_TOUCH_ENABLED = 'ontouchstart' in window;
+    /**
+     * 触屏设备一律按移动端处理。
+     * 只看 UA 会漏掉平板、触屏笔记本和部分安卓浏览器，
+     * 所以以「是否有触摸能力」为主，UA 只用来识别 iOS。
+     * @const
+     */
+    var IS_MOBILE = IS_TOUCH_ENABLED && (
+        IS_IOS || /Android|iPhone|iPad|iPod|Mobile|HarmonyOS/i.test(
+            window.navigator.userAgent));
 
     /**
      * Default game configuration.
@@ -125,7 +136,8 @@
         SPEED: 6,
         SPEED_DROP_COEFFICIENT: 3,
         ARCADE_MODE_INITIAL_TOP_POSITION: 35,
-        ARCADE_MODE_TOP_POSITION_PERCENT: 0.1
+        ARCADE_MODE_TOP_POSITION_PERCENT: 0.1,
+        SOUND_PREF_KEY: 't-rex-runner-sound'
     };
 
 
@@ -206,7 +218,8 @@
     Runner.keycodes = {
         JUMP: { '38': 1, '32': 1 },  // Up, spacebar
         DUCK: { '40': 1 },  // Down
-        RESTART: { '13': 1 }  // Enter
+        RESTART: { '13': 1 },  // Enter
+        MUTE: { '77': 1 }  // M
     };
 
 
@@ -221,7 +234,9 @@
         KEYUP: 'keyup',
         MOUSEDOWN: 'mousedown',
         MOUSEUP: 'mouseup',
+        MOUSELEAVE: 'mouseleave',
         RESIZE: 'resize',
+        TOUCHCANCEL: 'touchcancel',
         TOUCHEND: 'touchend',
         TOUCHSTART: 'touchstart',
         VISIBILITY: 'visibilitychange',
@@ -310,23 +325,79 @@
          * Load and decode base 64 encoded sounds.
          */
         loadSounds: function () {
-            if (!IS_IOS) {
-                this.audioContext = new AudioContext();
+            if (this.audioContext) {
+                this.resumeAudioContext();
+                return;
+            }
 
-                var resourceTemplate =
-                    document.getElementById(this.config.RESOURCE_TEMPLATE_ID).content;
+            var AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) {
+                return;
+            }
 
-                for (var sound in Runner.sounds) {
-                    var soundSrc =
-                        resourceTemplate.getElementById(Runner.sounds[sound]).src;
-                    soundSrc = soundSrc.substr(soundSrc.indexOf(',') + 1);
-                    var buffer = decodeBase64ToArrayBuffer(soundSrc);
+            try {
+                this.audioContext = new AudioCtx();
+            } catch (e) {
+                this.audioContext = null;
+                return;
+            }
+            this.resumeAudioContext();
 
-                    // Async, so no guarantee of order in array.
-                    this.audioContext.decodeAudioData(buffer, function (index, audioData) {
-                        this.soundFx[index] = audioData;
-                    }.bind(this, sound));
+            var resourceEl = document.getElementById(
+                this.config.RESOURCE_TEMPLATE_ID);
+            if (!resourceEl || !resourceEl.content) {
+                return;
+            }
+            var resourceTemplate = resourceEl.content;
+
+            for (var sound in Runner.sounds) {
+                var sourceEl = resourceTemplate.getElementById(Runner.sounds[sound]);
+                if (!sourceEl) {
+                    continue;
                 }
+                var soundSrc = sourceEl.src;
+                soundSrc = soundSrc.substr(soundSrc.indexOf(',') + 1);
+                var buffer = decodeBase64ToArrayBuffer(soundSrc);
+
+                // Async, so no guarantee of order in array.
+                this.audioContext.decodeAudioData(buffer, function (index, audioData) {
+                    this.soundFx[index] = audioData;
+                }.bind(this, sound));
+            }
+        },
+
+        /**
+         * iOS 上 AudioContext 初始是 suspended，必须在用户手势里恢复。
+         */
+        resumeAudioContext: function () {
+            if (this.audioContext && this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
+        },
+
+        /**
+         * 读取音效偏好，默认开启。
+         * 隐私模式下本地存储可能不可用，兜底返回 true。
+         * @return {boolean}
+         */
+        loadSoundPref: function () {
+            try {
+                return window.localStorage.getItem(
+                    this.config.SOUND_PREF_KEY) !== 'off';
+            } catch (e) {
+                return true;
+            }
+        },
+
+        /**
+         * 保存音效偏好。
+         */
+        saveSoundPref: function () {
+            try {
+                window.localStorage.setItem(this.config.SOUND_PREF_KEY,
+                    this.soundEnabled ? 'on' : 'off');
+            } catch (e) {
+                // 存不了不影响本次游玩。
             }
         },
 
@@ -388,6 +459,7 @@
             }
 
             this.startListening();
+            this.initUiControls();
             this.update();
 
             window.addEventListener(Runner.events.RESIZE,
@@ -468,6 +540,7 @@
             if (!this.activated && !this.crashed) {
                 this.playingIntro = true;
                 this.tRex.playingIntro = true;
+                this.hideStartHint();
 
                 // CSS animation definition.
                 var keyframes = '@-webkit-keyframes intro { ' +
@@ -623,6 +696,7 @@
                         break;
                     case events.KEYUP:
                     case events.TOUCHEND:
+                    case events.TOUCHCANCEL:
                     case events.MOUSEUP:
                         this.onKeyUp(e);
                         break;
@@ -638,11 +712,13 @@
             document.addEventListener(Runner.events.KEYDOWN, this);
             document.addEventListener(Runner.events.KEYUP, this);
 
-            if (IS_MOBILE) {
-                // Mobile only touch devices.
-                this.touchController.addEventListener(Runner.events.TOUCHSTART, this);
-                this.touchController.addEventListener(Runner.events.TOUCHEND, this);
-                this.containerEl.addEventListener(Runner.events.TOUCHSTART, this);
+            if (IS_TOUCH_ENABLED) {
+                // 触摸监听挂在 document 上：点屏幕任意位置都能开始 / 跳跃，
+                // 不再局限于初始时只有 44px 宽的容器。
+                document.addEventListener(Runner.events.TOUCHSTART, this,
+                    { passive: false });
+                document.addEventListener(Runner.events.TOUCHEND, this);
+                document.addEventListener(Runner.events.TOUCHCANCEL, this);
             } else {
                 // Mouse.
                 document.addEventListener(Runner.events.MOUSEDOWN, this);
@@ -657,10 +733,10 @@
             document.removeEventListener(Runner.events.KEYDOWN, this);
             document.removeEventListener(Runner.events.KEYUP, this);
 
-            if (IS_MOBILE) {
-                this.touchController.removeEventListener(Runner.events.TOUCHSTART, this);
-                this.touchController.removeEventListener(Runner.events.TOUCHEND, this);
-                this.containerEl.removeEventListener(Runner.events.TOUCHSTART, this);
+            if (IS_TOUCH_ENABLED) {
+                document.removeEventListener(Runner.events.TOUCHSTART, this);
+                document.removeEventListener(Runner.events.TOUCHEND, this);
+                document.removeEventListener(Runner.events.TOUCHCANCEL, this);
             } else {
                 document.removeEventListener(Runner.events.MOUSEDOWN, this);
                 document.removeEventListener(Runner.events.MOUSEUP, this);
@@ -672,9 +748,21 @@
          * @param {Event} e
          */
         onKeyDown: function (e) {
+            // 来自音效 / 低头按钮的点击不算游戏输入，避免误跳。
+            if (this.isUiEvent(e)) {
+                return;
+            }
+
             // Prevent native page scrolling whilst tapping on mobile.
-            if (IS_MOBILE && this.playing) {
+            if (IS_TOUCH_ENABLED && e.type == Runner.events.TOUCHSTART) {
                 e.preventDefault();
+            }
+
+            // M 键切换音效。
+            if (Runner.keycodes.MUTE[e.keyCode]) {
+                e.preventDefault();
+                this.toggleSound();
+                return;
             }
 
             if (e.target != this.detailsButton) {
@@ -695,8 +783,8 @@
                     }
                 }
 
-                if (this.crashed && e.type == Runner.events.TOUCHSTART &&
-                    e.currentTarget == this.containerEl) {
+                // 触屏：撞车后点任意位置重开。
+                if (this.crashed && e.type == Runner.events.TOUCHSTART) {
                     this.restart();
                 }
             }
@@ -722,6 +810,7 @@
             var keyCode = String(e.keyCode);
             var isjumpKey = Runner.keycodes.JUMP[keyCode] ||
                 e.type == Runner.events.TOUCHEND ||
+                e.type == Runner.events.TOUCHCANCEL ||
                 e.type == Runner.events.MOUSEDOWN;
 
             if (this.isRunning() && isjumpKey) {
@@ -890,12 +979,143 @@
          * @param {SoundBuffer} soundBuffer
          */
         playSound: function (soundBuffer) {
-            if (soundBuffer) {
-                var sourceNode = this.audioContext.createBufferSource();
-                sourceNode.buffer = soundBuffer;
-                sourceNode.connect(this.audioContext.destination);
-                sourceNode.start(0);
+            if (!soundBuffer || !this.soundEnabled || !this.audioContext) {
+                return;
             }
+            this.resumeAudioContext();
+
+            var sourceNode = this.audioContext.createBufferSource();
+            sourceNode.buffer = soundBuffer;
+            sourceNode.connect(this.audioContext.destination);
+            sourceNode.start(0);
+        },
+
+        /**
+         * 切换音效开关，并记住选择。
+         */
+        toggleSound: function () {
+            this.soundEnabled = !this.soundEnabled;
+            this.saveSoundPref();
+            this.updateSoundUi();
+
+            if (this.soundEnabled) {
+                if (!this.audioContext) {
+                    this.loadSounds();
+                }
+                // 给个即时反馈：开的时候响一声，关的时候自然没声。
+                this.playSound(this.soundFx.BUTTON_PRESS);
+            }
+
+            return this.soundEnabled;
+        },
+
+        /**
+         * 同步音效按钮的图标与无障碍属性。
+         */
+        updateSoundUi: function () {
+            if (!this.soundButton) {
+                return;
+            }
+            this.soundButton.classList.toggle('muted', !this.soundEnabled);
+            this.soundButton.setAttribute('aria-pressed',
+                String(this.soundEnabled));
+            this.soundButton.title = this.soundEnabled ?
+                'Sound on (M)' : 'Sound off (M)';
+        },
+
+        /**
+         * 绑定音效按钮、低头按钮，并根据设备调整开始提示。
+         */
+        initUiControls: function () {
+            this.soundButton = document.getElementById('sound-toggle');
+            if (this.soundButton) {
+                this.soundButton.addEventListener(Runner.events.CLICK,
+                    function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.toggleSound();
+                        // 别让焦点留在按钮上，否则空格会被当成按钮激活。
+                        this.soundButton.blur();
+                    }.bind(this));
+            }
+            this.updateSoundUi();
+
+            this.duckButton = document.getElementById('duck-button');
+            if (this.duckButton) {
+                var startDuck = function (e) {
+                    e.preventDefault();
+                    this.startDuck();
+                }.bind(this);
+                var endDuck = function () {
+                    this.endDuck();
+                }.bind(this);
+
+                this.duckButton.addEventListener(Runner.events.TOUCHSTART,
+                    startDuck, { passive: false });
+                this.duckButton.addEventListener(Runner.events.TOUCHEND, endDuck);
+                this.duckButton.addEventListener(Runner.events.TOUCHCANCEL, endDuck);
+                this.duckButton.addEventListener(Runner.events.MOUSEDOWN, startDuck);
+                this.duckButton.addEventListener(Runner.events.MOUSEUP, endDuck);
+                this.duckButton.addEventListener(Runner.events.MOUSELEAVE, endDuck);
+            }
+
+            var hint = document.querySelector('#messageBox h1');
+            if (hint && IS_TOUCH_ENABLED) {
+                hint.textContent = 'Tap to start';
+            }
+        },
+
+        /**
+         * 按下低头按钮（触屏）。
+         */
+        startDuck: function () {
+            if (!this.playing || this.crashed || !this.tRex) {
+                return;
+            }
+            if (this.tRex.jumping) {
+                this.tRex.setSpeedDrop();
+            } else {
+                this.tRex.setDuck(true);
+            }
+        },
+
+        /**
+         * 松开低头按钮。
+         */
+        endDuck: function () {
+            if (!this.tRex) {
+                return;
+            }
+            this.tRex.speedDrop = false;
+            this.tRex.setDuck(false);
+            if (this.duckButton) {
+                this.duckButton.blur();
+            }
+        },
+
+        /**
+         * 隐藏开始提示。
+         */
+        hideStartHint: function () {
+            var box = document.getElementById('messageBox');
+            if (box && !box.classList.contains('hidden')) {
+                box.classList.add('hidden');
+            }
+        },
+
+        /**
+         * 事件是否来自游戏内 UI（按钮），是的话不当作跳跃输入。
+         * @param {Event} e
+         * @return {boolean}
+         */
+        isUiEvent: function (e) {
+            // 键盘事件始终交给游戏处理：按钮点完就失焦，
+            // 否则焦点留在按钮上会把空格、M 等按键吞掉。
+            if (e.type == Runner.events.KEYDOWN || e.type == Runner.events.KEYUP) {
+                return false;
+            }
+            var target = e.target;
+            return !!(target && target.closest && target.closest('.dino-ui'));
         },
 
         /**

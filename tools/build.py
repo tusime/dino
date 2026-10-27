@@ -104,8 +104,9 @@ DIST.mkdir(exist_ok=True)
 out = DIST / OUT_NAME
 
 reps = [n0, n1, n2, n3, n4, n5, n6]
-# n0 是兼容性兜底清理，未命中属正常（源码已清理干净）
-critical = reps[1:]
+# n0（死引用清理）和 n2（外链字体）都是兼容旧源码的兜底步骤，
+# 现在的 src/ 里已经干净，未命中属正常
+critical = [n1, n3, n4, n5, n6]
 if 0 in critical:
     print(f"[warn] 关键替换未命中: {reps} —— 源码可能被改动过，请检查")
 
